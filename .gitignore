@@ -1,0 +1,9 @@
+config.json
+cache/
+*.zip
+*.gguf
+.DS_Store
+Thumbs.db
+node_modules/
+dist/
+*.log
