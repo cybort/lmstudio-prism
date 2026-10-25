@@ -17,7 +17,13 @@ if (-not (Test-Path $ConfigPath)) {
 $cfg = Get-Content $ConfigPath -Raw | ConvertFrom-Json
 
 if (-not $BackendDir) {
-  $BackendDir = Join-Path $env:USERPROFILE ".lmstudio\extensions\backends\$($cfg.backend_name)-$($cfg.backend_version)"
+  $installTarget = if ($cfg.install_target) { $cfg.install_target } else { "overlay" }
+  if ($installTarget -eq "overlay") {
+    $BackendDir = Join-Path $env:USERPROFILE ".lmstudio\extensions\backends\$($cfg.donor_backend)"
+  }
+  else {
+    $BackendDir = Join-Path $env:USERPROFILE ".lmstudio\extensions\backends\$($cfg.backend_name)-$($cfg.backend_version)"
+  }
 }
 if (-not (Test-Path (Join-Path $BackendDir "llama-server.exe"))) {
   Write-Host "[smoke] backend missing; falling back to local_path"

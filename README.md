@@ -25,13 +25,16 @@ copy config.example.json config.json
 .\install.ps1 -Force
 ```
 
-Then in LM Studio: **Ctrl+Shift+R** → select  
-`llama.cpp-win-x86_64-nvidia-cuda-prism-avx2@0.1.0-prism-b10777`  
-(or whatever you set in config).
+`install_target` in config:
+
+| Value | Behavior |
+| --- | --- |
+| **`overlay`** (default) | Backs up the donor folder to `*.bak-stock`, then overlays Prism DLLs/exe into it. Still appears as the donor in `lms runtime ls` / Ctrl+Shift+R. |
+| **`sidecar`** | New backend folder + `register_index.py`. Fully quit LM Studio and reopen before it shows up. |
 
 ```powershell
 lms runtime ls
-lms runtime select llama.cpp-win-x86_64-nvidia-cuda-prism-avx2@0.1.0-prism-b10777
+# overlay: keep selecting the donor (e.g. cuda12@2.60.0) — binaries are Prism
 ```
 
 ## Smoke test
@@ -58,6 +61,18 @@ Delete:
 `%USERPROFILE%\.lmstudio\extensions\backends\<backend_name>-<backend_version>\`
 
 Then pick an official runtime again in Ctrl+Shift+R.
+
+## CLI (lmstudio-js fork)
+
+After building the cybort `lmstudio-js` / `lms` fork:
+
+```powershell
+lms runtime register-custom --config K:\project\lmstudio-prism\config.json --prism-root K:\project\lmstudio-prism
+# or:
+lms runtime register-custom --path K:\project\Strata\third_party\prism-llama\cuda
+```
+
+See `K:\project\lmstudio-js\PRISM.md`.
 
 ## Related
 

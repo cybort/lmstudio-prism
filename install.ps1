@@ -5,9 +5,9 @@
 
 .DESCRIPTION
   Reads config.json (copies from config.example.json if missing).
-  mode=local  -> use local_path
-  mode=url    -> download zip into cache/ and extract
-  Copies LM Studio bridge files from donor_backend, then overlays Prism runtime binaries.
+  mode=local|url for Prism source.
+  install_target=overlay (default): backup + overlay into donor_backend (shows in lms runtime ls).
+  install_target=sidecar: new folder + register_index.py (needs LM Studio restart to appear).
 #>
 param(
   [string]$ConfigPath = "",
@@ -27,17 +27,45 @@ if (-not (Test-Path $ConfigPath)) {
 $cfg = Get-Content $ConfigPath -Raw | ConvertFrom-Json
 $backendsRoot = Join-Path $env:USERPROFILE ".lmstudio\extensions\backends"
 $donorDir = Join-Path $backendsRoot $cfg.donor_backend
-$outName = "$($cfg.backend_name)-$($cfg.backend_version)"
-$outDir = Join-Path $backendsRoot $outName
+$installTarget = if ($cfg.install_target) { $cfg.install_target } else { "overlay" }
 $cacheDir = Join-Path $Root "cache"
 
 function Assert-Path($path, $label) {
   if (-not (Test-Path $path)) { throw "$label not found: $path" }
 }
 
+function Overlay-Prism($destDir, $prismDir) {
+  $prismOverlay = @(
+    "llama-server.exe",
+    "llama-server-impl.dll",
+    "llama.dll",
+    "llama-common.dll",
+    "ggml.dll",
+    "ggml-base.dll",
+    "ggml-cuda.dll",
+    "ggml-rpc.dll",
+    "mtmd.dll"
+  )
+  foreach ($name in $prismOverlay) {
+    $src = Join-Path $prismDir $name
+    if (Test-Path $src) {
+      Copy-Item $src (Join-Path $destDir $name) -Force
+      Write-Host "  overlay $name"
+    }
+  }
+  $cpuDonor = Join-Path $destDir "ggml-cpu.dll"
+  $cpuPrism = Get-ChildItem $prismDir -Filter "ggml-cpu*.dll" | Sort-Object Length -Descending | Select-Object -First 1
+  if ($cpuPrism) {
+    Copy-Item $cpuPrism.FullName $cpuDonor -Force
+    Write-Host "  overlay ggml-cpu.dll from $($cpuPrism.Name)"
+  }
+  Get-ChildItem $prismDir -Filter "ggml-cpu-*.dll" | ForEach-Object {
+    Copy-Item $_.FullName (Join-Path $destDir $_.Name) -Force
+  }
+}
+
 Assert-Path $donorDir "donor_backend"
 
-# Resolve Prism directory
 $prismDir = $null
 if ($cfg.mode -eq "local") {
   Assert-Path $cfg.local_path "local_path"
@@ -73,97 +101,70 @@ else {
 Assert-Path (Join-Path $prismDir "llama-server.exe") "Prism llama-server.exe"
 Assert-Path (Join-Path $prismDir "ggml-cuda.dll") "Prism ggml-cuda.dll"
 
-if ((Test-Path $outDir) -and -not $Force) {
-  Write-Host "[lmstudio-prism] already installed: $outDir (pass -Force to rebuild)"
+$outDir = $null
+if ($installTarget -eq "overlay") {
+  $backup = "$donorDir.bak-stock"
+  if (-not (Test-Path $backup)) {
+    Write-Host "[lmstudio-prism] backing up stock donor -> $backup"
+    Copy-Item -Path $donorDir -Destination $backup -Recurse -Force
+  }
+  elseif ($Force) {
+    Write-Host "[lmstudio-prism] stock backup already at $backup (kept)"
+  }
+  Write-Host "[lmstudio-prism] install_target=overlay into $donorDir"
+  Overlay-Prism $donorDir $prismDir
+  # Keep stock manifest name/version so lms runtime ls keeps listing it
+  $outDir = $donorDir
+  Write-Host "[lmstudio-prism] overlay done (runtime still listed as donor name/version)"
+}
+elseif ($installTarget -eq "sidecar") {
+  $outName = "$($cfg.backend_name)-$($cfg.backend_version)"
+  $outDir = Join-Path $backendsRoot $outName
+  if ((Test-Path $outDir) -and -not $Force) {
+    Write-Host "[lmstudio-prism] already installed: $outDir (pass -Force to rebuild)"
+  }
+  else {
+    if (Test-Path $outDir) { Remove-Item -Recurse -Force $outDir }
+    New-Item -ItemType Directory -Force -Path $outDir | Out-Null
+    Write-Host "[lmstudio-prism] copying donor from $donorDir"
+    Copy-Item -Path (Join-Path $donorDir "*") -Destination $outDir -Recurse -Force
+    Overlay-Prism $outDir $prismDir
+    $manifestPath = Join-Path $outDir "backend-manifest.json"
+    $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
+    $manifest.name = $cfg.backend_name
+    $manifest.version = $cfg.backend_version
+    $manifest.engine_protocol_server = @{
+      runtime_kind = "llama-server"
+      executable_relative_path = "llama-server.exe"
+    }
+    $utf8NoBom = New-Object System.Text.UTF8Encoding $false
+    [IO.File]::WriteAllText($manifestPath, ($manifest | ConvertTo-Json -Depth 10), $utf8NoBom)
+    Write-Host "[lmstudio-prism] sidecar installed -> $outDir"
+  }
+  $donorManifest = Get-Content (Join-Path $donorDir "backend-manifest.json") -Raw | ConvertFrom-Json
+  python (Join-Path $Root "register_index.py") `
+    --backend-dir $outDir `
+    --donor-name $donorManifest.name `
+    --donor-version $donorManifest.version `
+    --name $cfg.backend_name `
+    --version $cfg.backend_version
+  if ($LASTEXITCODE -ne 0) { throw "register_index.py failed" }
+  Write-Host "[lmstudio-prism] note: exit LM Studio fully, then reopen, for sidecar to appear in runtime ls"
 }
 else {
-  if (Test-Path $outDir) { Remove-Item -Recurse -Force $outDir }
-  New-Item -ItemType Directory -Force -Path $outDir | Out-Null
-
-  # 1) Donor: LM Studio bridge + runtime scaffolding
-  Write-Host "[lmstudio-prism] copying donor from $donorDir"
-  Copy-Item -Path (Join-Path $donorDir "*") -Destination $outDir -Recurse -Force
-
-  # 2) Overlay Prism runtime binaries (keep *.node / llm_engine* / lmstudiocore)
-  $prismOverlay = @(
-    "llama-server.exe",
-    "llama-server-impl.dll",
-    "llama.dll",
-    "llama-common.dll",
-    "ggml.dll",
-    "ggml-base.dll",
-    "ggml-cuda.dll",
-    "ggml-rpc.dll",
-    "mtmd.dll"
-  )
-  foreach ($name in $prismOverlay) {
-    $src = Join-Path $prismDir $name
-    if (Test-Path $src) {
-      Copy-Item $src (Join-Path $outDir $name) -Force
-      Write-Host "  overlay $name"
-    }
-  }
-  # Prism ships multiple ggml-cpu-*.dll; LM Studio expects ggml-cpu.dll
-  $cpuDonor = Join-Path $outDir "ggml-cpu.dll"
-  $cpuPrism = Get-ChildItem $prismDir -Filter "ggml-cpu*.dll" | Sort-Object Length -Descending | Select-Object -First 1
-  if ($cpuPrism) {
-    # Prefer a single ggml-cpu.dll name for LM Studio; keep largest Prism CPU backend as ggml-cpu.dll
-    # but do not delete donor if Prism only has arch-specific names without a generic one.
-    if ($cpuPrism.Name -eq "ggml-cpu.dll") {
-      Copy-Item $cpuPrism.FullName $cpuDonor -Force
-      Write-Host "  overlay ggml-cpu.dll"
-    }
-    else {
-      Copy-Item $cpuPrism.FullName (Join-Path $outDir $cpuPrism.Name) -Force
-      Copy-Item $cpuPrism.FullName $cpuDonor -Force
-      Write-Host "  overlay ggml-cpu.dll from $($cpuPrism.Name)"
-    }
-  }
-  # Also copy remaining Prism ggml-cpu-* variants for Prism's own CPU dispatch
-  Get-ChildItem $prismDir -Filter "ggml-cpu-*.dll" | ForEach-Object {
-    Copy-Item $_.FullName (Join-Path $outDir $_.Name) -Force
-  }
-
-  # 3) Manifest: rename engine, keep protocol + vendor from donor
-  $manifestPath = Join-Path $outDir "backend-manifest.json"
-  $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
-  $manifest.name = $cfg.backend_name
-  $manifest.version = $cfg.backend_version
-  $manifest.engine_protocol_server = @{
-    runtime_kind = "llama-server"
-    executable_relative_path = "llama-server.exe"
-  }
-  $manifest | ConvertTo-Json -Depth 10 | Set-Content $manifestPath -Encoding UTF8
-
-  # 4) display-data: mark as Prism
-  $displayPath = Join-Path $outDir "display-data.json"
-  if (Test-Path $displayPath) {
-    try {
-      $display = Get-Content $displayPath -Raw | ConvertFrom-Json
-      # display-data is [["en",{...}], ...]
-      foreach ($entry in $display) {
-        if ($entry -is [System.Array] -or $entry.Count -ge 2) {
-          $meta = $entry[1]
-          if ($meta.displayName) {
-            $meta.displayName = "Prism CUDA llama.cpp (Windows)"
-            $meta.description = "PrismML llama.cpp with PQ2_0 / PTQ1_0 (overlay on LM Studio donor bridge)"
-          }
-        }
-      }
-      $display | ConvertTo-Json -Depth 20 -Compress | Set-Content $displayPath -Encoding UTF8
-    }
-    catch {
-      Write-Host "[lmstudio-prism] warning: could not rewrite display-data.json: $_"
-    }
-  }
-
-  Write-Host "[lmstudio-prism] installed -> $outDir"
+  throw "install_target must be 'overlay' or 'sidecar', got: $installTarget"
 }
 
 Write-Host ""
 Write-Host "Next:"
-Write-Host "  1. Ctrl+Shift+R in LM Studio -> select '$($cfg.backend_name)@$($cfg.backend_version)'"
-Write-Host "  2. Or: lms runtime ls"
-Write-Host "  3. Smoke:  .\test_smoke.ps1"
+if ($installTarget -eq "overlay") {
+  Write-Host "  Keep selecting the donor runtime in Ctrl+Shift+R (now runs Prism binaries)."
+  Write-Host "  Rollback: copy from $donorDir.bak-stock back over the donor folder."
+}
+else {
+  Write-Host "  1. Fully quit LM Studio, reopen, Ctrl+Shift+R -> '$($cfg.backend_name)@$($cfg.backend_version)'"
+  Write-Host "  2. Or: lms runtime ls"
+}
+Write-Host "  Smoke:  .\test_smoke.ps1"
 Write-Host ""
 Write-Host "BACKEND_DIR=$outDir"
