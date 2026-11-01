@@ -75,6 +75,39 @@ Pass to the server (LM Studio → load → additional llama.cpp args):
 
 Requires `--cache-type-k q4_0`. See Prism `docs/kv-mean-center.md`.
 
+## Graft MTP head (PQ2_0 / PTQ1_0)
+
+Official 27B GGUFs ship without an MTP block. Graft 15 `blk.64.*` tensors (same layout as
+stock Qwen3.8 / community MTP models) and set `qwen35.nextn_predict_layers=1` so LM Studio
+sets `supportsMtp: true`:
+
+```powershell
+# PQ2_0 (default paths). Uses a local Qwen3.8 MTP donor if present, else HF mirror.
+.\graft-mtp.ps1
+
+# PTQ1_0 after the base file is downloaded next to PQ2_0:
+.\graft-mtp.ps1 -Base J:\models\prism-ml\Ternary-Bonsai-2-27B-gguf\Ternary-Bonsai-2-27B-PTQ1_0.gguf
+```
+
+Output example: `J:\models\prism-ml\Ternary-Bonsai-2-27B-PQ2_0-MTP-gguf\Ternary-Bonsai-2-27B-PQ2_0-MTP.gguf`
+(own folder so LM Studio indexes it like other MTP models; `mmproj` / `kv-bias` are hardlinked).
+
+Base tensors stay bit-identical; MTP weights are **not** added to `prism.hadamard.weight_names`.
+Metadata: `qwen35.block_count=65`, `qwen35.nextn_predict_layers=1` → LMS `supportsMtp: true`.
+
+After grafting, refresh **My Models** in LM Studio (or restart the app) so the indexer picks up the new folder. Then load with Draft MTP:
+
+```powershell
+lms load prism-ml/ternary-bonsai-2-27b-pq2_0-mtp-gguf/ternary-bonsai-2-27b-pq2_0-mtp.gguf `
+  --speculative-draft-mtp --speculative-draft-max-tokens 2 -y
+```
+
+UI: Speculative decoding → **Draft MTP**, max draft tokens `2`, parallel slots `1`.
+CLI equivalent: `--spec-type draft-mtp --spec-draft-n-max 2`.
+
+Prism `qwen35` from ~`prism-b10743` includes the MTP Hadamard inverse; this overlay
+(`prism-b10777` + FA) has it.
+
 ## Smoke test
 
 ```powershell
@@ -102,7 +135,21 @@ Delete / restore:
 
 Then pick an official runtime again in Ctrl+Shift+R.
 
+## Style distill → Ternary QAT → PQ2_0 / PTQ1_0
+
+To retrain/adapt an existing teacher onto unpacked Ternary-Bonsai-2 (keep style/ability), then
+pack the **same** trit weights as PQ2_0 (primary) and PTQ1_0:
+
+See [`ternary-style-pipeline/README.md`](ternary-style-pipeline/README.md).
+
+```powershell
+cd ternary-style-pipeline
+.\scripts\run_all.ps1 -DryRun   # wiring smoke
+# edit configs/models.yaml, then run without -DryRun
+```
+
 ## Related
 
 - Prism pin: `prism-b10777-e3de715`
 - Strata Bonsai path: `--engine bonsai` + `tools/bonsai/fetch_prism.py`
+- Pipeline: `ternary-style-pipeline/`
