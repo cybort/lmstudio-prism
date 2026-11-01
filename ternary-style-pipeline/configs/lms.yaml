@@ -1,0 +1,35 @@
+# Phase 4 — Prism smoke + LM Studio ship
+
+gguf_dir: "out/gguf"
+ship_root: "J:/models/prism-ml"   # Windows LMS models root; override locally
+model_name_prefix: "Style-Bonsai-2-27B"
+
+runtime:
+  # Prism overlay backend (already installed via lmstudio-prism)
+  llama_server: null   # auto: discover from ~/.lmstudio/extensions/backends
+  host: "127.0.0.1"
+  port: 8765
+  # FA asymmetric KV — do NOT pass --kv-mean-center with kCache=q8_0
+  k_cache: "q8_0"
+  v_cache: "q4_0"
+  ctx: 8192
+  gpu_layers: 999
+  draft_mtp: true
+  n_max: 2
+  np: 1
+  parallel: 1
+
+smoke:
+  prompt: "Say hello in one short sentence."
+  min_chars: 8
+  reject_gibberish_ratio: 0.35   # high non-alnum → fail
+
+default_config:
+  # written under LM Studio user-concrete-model-default-config when shipping
+  draftMtp: true
+  kCache: "q8_0"
+  vCache: "q4_0"
+  # Explicitly omit kv-mean-center (conflicts with q8_0 K cache)
+
+eval_after_ship: true
+eval_config: "configs/eval.yaml"

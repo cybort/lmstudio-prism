@@ -1,0 +1,38 @@
+# Phase 0 — lock teacher + Bonsai-2 unpacked student
+#
+# Replace paths with your local / HF ids. Prefer HF FP16 for the teacher.
+# Student MUST be an unpacked Ternary-Bonsai-2 checkpoint (Hadamard basis).
+
+teacher:
+  # FP16/BF16 HF preferred. GGUF-only teachers fall back to black-box distillation.
+  model_id: "path/or/hf-id/of/your-teacher"
+  kind: "hf"          # hf | openai_compat | gguf_server
+  # openai_compat base URL when kind=openai_compat (e.g. LM Studio)
+  base_url: "http://127.0.0.1:1234/v1"
+  api_key: "lm-studio"
+  temperature_mix: [0.3, 0.7, 1.0]
+  max_new_tokens: 1024
+
+student:
+  # Same size class as teacher. Examples:
+  #   prism-ml/Ternary-Bonsai-2-2B-unpacked
+  #   prism-ml/Ternary-Bonsai-2-4B-unpacked
+  #   prism-ml/Ternary-Bonsai-2-9B-unpacked
+  #   prism-ml/Ternary-Bonsai-2-27B-unpacked
+  model_id: "prism-ml/Ternary-Bonsai-2-27B-unpacked"
+  group_size: 128
+  # Optional local path override
+  local_path: null
+
+pack_preference:
+  primary: "PQ2_0"
+  also: ["PTQ1_0"]
+  optional: ["Q2_0"]
+
+# Donor GGUF used by pack_gguf.py to preserve Hadamard KV / norms / naming.
+donor_gguf:
+  PQ2_0: "J:/models/prism-ml/Ternary-Bonsai-2-27B-gguf/Ternary-Bonsai-2-27B-PQ2_0.gguf"
+  PTQ1_0: "J:/models/prism-ml/Ternary-Bonsai-2-27B-gguf/Ternary-Bonsai-2-27B-PTQ1_0.gguf"
+  Q2_0: null
+  mmproj: "J:/models/prism-ml/Ternary-Bonsai-2-27B-gguf/Ternary-Bonsai-2-27B-mmproj-Q8_0.gguf"
+  mtp_src: null  # optional MTP donor; falls back to graft_mtp.py default URL

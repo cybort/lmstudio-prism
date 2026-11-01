@@ -8,3 +8,9 @@ Thumbs.db
 node_modules/
 dist/
 *.log
+ternary-style-pipeline/out/
+ternary-style-pipeline/data/teacher_traces.jsonl
+ternary-style-pipeline/data/capability.jsonl
+ternary-style-pipeline/data/train_mixed.jsonl
+ternary-style-pipeline/**/__pycache__/
+*.pt

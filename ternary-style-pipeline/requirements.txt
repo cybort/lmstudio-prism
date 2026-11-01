@@ -1,0 +1,16 @@
+# Core training stack (install torch yourself first for the right CUDA build)
+ternary_QAT>=0.1.5
+transformers>=4.45.0
+peft>=0.12.0
+accelerate>=0.33.0
+datasets>=2.20.0
+safetensors>=0.4.0
+pyyaml>=6.0
+numpy>=1.26.0
+tqdm>=4.66.0
+
+# Optional: Unsloth-compatible LoRA path
+# unsloth
+
+# Optional GGUF tooling (donor rewrite / Q2_0 writes)
+# gguf>=0.10.0

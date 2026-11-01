@@ -135,7 +135,21 @@ Delete / restore:
 
 Then pick an official runtime again in Ctrl+Shift+R.
 
+## Style distill → Ternary QAT → PQ2_0 / PTQ1_0
+
+To retrain/adapt an existing teacher onto unpacked Ternary-Bonsai-2 (keep style/ability), then
+pack the **same** trit weights as PQ2_0 (primary) and PTQ1_0:
+
+See [`ternary-style-pipeline/README.md`](ternary-style-pipeline/README.md).
+
+```powershell
+cd ternary-style-pipeline
+.\scripts\run_all.ps1 -DryRun   # wiring smoke
+# edit configs/models.yaml, then run without -DryRun
+```
+
 ## Related
 
 - Prism pin: `prism-b10777-e3de715`
 - Strata Bonsai path: `--engine bonsai` + `tools/bonsai/fetch_prism.py`
+- Pipeline: `ternary-style-pipeline/`

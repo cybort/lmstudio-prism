@@ -1,0 +1,28 @@
+# Phase 1 — style distillation + capability anchors
+
+prompts_file: "data/probes/style_probes.jsonl"   # seed prompts; replace with your real usage logs
+extra_prompts_glob: null                        # e.g. data/usage/*.jsonl
+
+output:
+  teacher_traces: "data/teacher_traces.jsonl"
+  capability: "data/capability.jsonl"
+  mixed: "data/train_mixed.jsonl"
+
+mix:
+  distill_ratio: 0.80
+  capability_ratio: 0.20
+  shuffle_seed: 42
+
+generation:
+  # multi-temperature sampling to avoid single-T collapse
+  temperatures: [0.3, 0.7, 1.0]
+  samples_per_prompt: 1
+  max_new_tokens: 1024
+  # smoke size first; scale to 50k–200k for real runs
+  max_traces: 200
+  system_prompt: null   # keep teacher default / per-probe system
+
+capability:
+  # high-quality successful tool / reasoning trajectories (hand-curated)
+  source: "data/samples/capability.example.jsonl"
+  copy_only: true

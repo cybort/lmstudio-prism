@@ -1,0 +1,59 @@
+# Phase 2 — ternary_QAT + LoRA (group 128)
+
+student_config: "configs/models.yaml"
+train_file: "data/train_mixed.jsonl"
+output_dir: "out/qat_lora"
+
+ternary:
+  group_size: 128
+
+lora:
+  r: 64
+  lora_alpha: 64
+  lora_dropout: 0.05
+  bias: "none"
+  target_modules:
+    - q_proj
+    - k_proj
+    - v_proj
+    - o_proj
+    - gate_proj
+    - up_proj
+    - down_proj
+  # freeze ternary base; train FP adapters only
+  modules_to_save: []
+
+optim:
+  # Ternary QAT needs ~10–50× higher LR than FP FT.
+  # Usable band ~5e-4 … 1e-3; too low → scale-only / zero code-flip.
+  learning_rate: 7.0e-4
+  weight_decay: 0.0
+  warmup_ratio: 0.03
+  lr_scheduler_type: "cosine"
+  max_grad_norm: 1.0
+  num_train_epochs: 2
+  per_device_train_batch_size: 1
+  gradient_accumulation_steps: 8
+  bf16: true
+  logging_steps: 10
+  save_steps: 200
+  eval_steps: 200
+  max_seq_length: 4096
+  # early stop prefers style/tool metrics over loss→0
+  early_stop_on: "style_probe"
+  early_stop_patience: 2
+
+code_flip:
+  # monitor {-1,0,+1} change rate vs step-0 snapshot
+  every_n_steps: 50
+  target_min: 0.003   # 0.3%
+  target_max: 0.020   # 2.0%
+  sweet_spot: 0.007   # ~0.7%
+  warn_if_near_zero: 0.0005
+  snapshot_path: "out/qat_lora/code_flip_step0.pt"
+  log_path: "out/qat_lora/code_flip.jsonl"
+
+merge:
+  # at save: ternarize_lora_params → merge_and_unload → reternarize_merged_linears
+  merge_on_save: true
+  final_dir: "out/qat_merged"

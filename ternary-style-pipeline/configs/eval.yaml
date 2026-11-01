@@ -1,0 +1,32 @@
+# Baseline + regression evaluation package
+
+output_dir: "out/eval"
+
+probes:
+  style: "data/probes/style_probes.jsonl"
+  capability: "data/probes/capability_probes.jsonl"
+
+generation:
+  max_new_tokens: 512
+  temperature: 0.7
+  top_p: 0.9
+  # greedy used for same-weight PQ2 vs PTQ1 identity check
+  greedy_for_parity: true
+
+scoring:
+  # style: pairwise preference vs teacher (heuristic + optional judge)
+  style_metric: "token_overlap_and_length"
+  capability_pass_threshold: 0.7
+  # student must not fall below baseline_bonsai_tool_rate - delta
+  tool_rate_max_drop: 0.05
+
+targets:
+  # filled after baseline run
+  baseline_teacher_report: "out/eval/baseline_teacher.json"
+  baseline_bonsai_report: "out/eval/baseline_bonsai.json"
+  post_qat_report: "out/eval/post_qat.json"
+
+parity:
+  # PQ2_0 vs PTQ1_0 greedy text must match
+  require_exact_match: true
+  prompts_file: "data/probes/style_probes.jsonl"

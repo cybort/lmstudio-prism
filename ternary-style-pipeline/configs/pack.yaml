@@ -1,0 +1,35 @@
+# Phase 3 — same trit weights → PQ2_0 / PTQ1_0 / optional Q2_0
+
+models_config: "configs/models.yaml"
+merged_hf_dir: "out/qat_merged"
+output_dir: "out/gguf"
+
+layouts:
+  - PQ2_0   # primary delivery
+  - PTQ1_0  # same weights, denser file
+  # - Q2_0  # uncomment for upstream llama.cpp compatibility
+
+# Prefer rewriting an official donor GGUF so Hadamard KV / norms / names stay exact.
+mode: "donor_rewrite"   # donor_rewrite | latent_only | external_packer
+
+donor_rewrite:
+  # Maps HF param suffix → GGUF tensor name patterns are resolved by shape+name heuristics
+  # when --name-map is absent. Provide an explicit map for production runs.
+  name_map: null        # path to JSON { "model.layers.0.self_attn.q_proj.weight": "blk.0.attn_q.weight", ... }
+  replace_ternary_only: true
+  keep_hadamard_metadata: true
+
+external_packer:
+  # If Prism ships a CLI converter, point here. Example:
+  # command: "python {prism_convert} --in {hf} --out {out} --type {layout}"
+  command: null
+
+verify:
+  # dequant PQ2 and PTQ1 blocks and assert identical trits+scales
+  same_weight_check: true
+  max_tensors_sample: 8
+
+post:
+  hardlink_mmproj: true
+  graft_mtp: true
+  graft_script: "../graft_mtp.py"   # relative to this pipeline root → repo root
