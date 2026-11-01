@@ -1,0 +1,4 @@
+{"id": "mt_01", "messages": [{"role": "user", "content": "Explain what a binary search tree is, then give one insertion example."}]}
+{"id": "mt_02", "messages": [{"role": "user", "content": "Write a polite email declining a meeting, then a shorter Slack version."}]}
+{"id": "mt_03", "messages": [{"role": "user", "content": "Compare TCP and UDP in a short structured answer for a junior engineer."}]}
+{"id": "mt_04", "messages": [{"role": "user", "content": "帮我用简洁中文说明什么是量化感知训练（QAT），并给一个注意事项。"}]}

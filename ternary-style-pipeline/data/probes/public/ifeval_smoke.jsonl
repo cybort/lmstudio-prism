@@ -1,0 +1,8 @@
+{"id": "ifeval_01", "messages": [{"role": "user", "content": "Write exactly 3 bullet points about water. No other text."}], "instructions": [{"kind": "bullet_count", "n": 3}]}
+{"id": "ifeval_02", "messages": [{"role": "user", "content": "Reply with a single JSON object that has keys \"city\" and \"country\". No markdown."}], "instructions": [{"kind": "json_object"}]}
+{"id": "ifeval_03", "messages": [{"role": "user", "content": "Write EXACTLY TWO SENTENCES about tea."}], "instructions": [{"kind": "number_sentences", "n": 2}]}
+{"id": "ifeval_04", "messages": [{"role": "user", "content": "Answer in all capital letters: what color is the sky on a clear day?"}], "instructions": [{"kind": "all_caps"}]}
+{"id": "ifeval_05", "messages": [{"role": "user", "content": "Say hello and include the keyword prismml somewhere in your reply."}], "instructions": [{"kind": "include_keyword", "keyword": "prismml"}]}
+{"id": "ifeval_06", "messages": [{"role": "user", "content": "Write exactly 8 English words about cats, nothing else."}], "instructions": [{"kind": "number_words", "n": 8}]}
+{"id": "ifeval_07", "messages": [{"role": "user", "content": "Give a one-line tip about backups. End your entire reply with the suffix END."}], "instructions": [{"kind": "end_with", "suffix": "END"}]}
+{"id": "ifeval_08", "messages": [{"role": "user", "content": "Reply in all lowercase letters only: name one fruit."}], "instructions": [{"kind": "all_lowercase"}]}
