@@ -15,8 +15,10 @@ py() { command -v python >/dev/null && python "$@" || python3 "$@"; }
 echo "== Phase 0: baseline =="
 if [[ "$DRY" == 1 ]]; then
   py eval/baseline.py --dry-run --backend echo
+  py eval/public_benchmarks.py --dry-run --target baseline_bonsai --out out/eval/public_baseline_bonsai.json
 else
   py eval/baseline.py --backend "${BASELINE_BACKEND:-openai_compat}"
+  py eval/public_benchmarks.py --backend "${BASELINE_BACKEND:-openai_compat}" --target baseline_bonsai --out out/eval/public_baseline_bonsai.json
 fi
 
 echo "== Phase 1: distill + mix =="
@@ -44,11 +46,17 @@ fi
 
 echo "== Phase 4: smoke + regression =="
 py scripts/smoke_prism.py --dry-run
-# copy baseline bonsai as post placeholder when dry
+# copy baseline bonsai as post placeholder when dry / before real post eval
 mkdir -p out/eval
 if [[ -f out/eval/baseline_bonsai.json && ! -f out/eval/post_qat.json ]]; then
   cp out/eval/baseline_bonsai.json out/eval/post_qat.json
 fi
+if [[ "$DRY" == 1 ]]; then
+  py eval/public_benchmarks.py --dry-run --target post_qat --out out/eval/public_post_qat.json
+else
+  py eval/public_benchmarks.py --backend "${BASELINE_BACKEND:-openai_compat}" --target post_qat --out out/eval/public_post_qat.json
+fi
+py eval/regression_gates.py
 py eval/compare_teacher.py || true
 
 echo "done. See out/ and README.md"

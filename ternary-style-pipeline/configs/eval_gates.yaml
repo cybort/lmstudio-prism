@@ -1,0 +1,108 @@
+# Publicly recognized capability-regression gates.
+# Compare post-QAT (or shipped) scores against the *pre-QAT Bonsai* baseline.
+# Absolute drop = baseline - post. Fail if drop > max_abs_drop for any required suite.
+
+output_dir: "out/eval"
+gates_report: "out/eval/public_gates.json"
+
+# Generation defaults for objective suites (greedy / low-T preferred).
+generation:
+  max_new_tokens: 512
+  temperature: 0.0
+  top_p: 1.0
+  # HumanEval may need more tokens
+  max_new_tokens_code: 1024
+
+suites:
+  # Cobbe et al. 2021 — grade-school math; Eleuther lm-eval "flexible-extract" protocol.
+  gsm8k:
+    enabled: true
+    required: true
+    protocol: "gsm8k_flexible_extract"
+    citation: "Cobbe et al., Training Verifiers to Solve Math Word Problems, 2021"
+    probes: "data/probes/public/gsm8k_smoke.jsonl"
+    metric: "accuracy"
+    max_abs_drop: 0.03
+    # Full run via lm-eval (optional):
+    lm_eval_task: "gsm8k"
+
+  # Hendrycks et al. 2021 — multi-task knowledge MCQ.
+  mmlu:
+    enabled: true
+    required: true
+    protocol: "mmlu_letter_accuracy"
+    citation: "Hendrycks et al., Measuring Massive Multitask Language Understanding, ICLR 2021"
+    probes: "data/probes/public/mmlu_smoke.jsonl"
+    metric: "accuracy"
+    max_abs_drop: 0.02
+    lm_eval_task: "mmlu"
+
+  # Zhou et al. 2023 — verifiable instruction following (strict / loose).
+  ifeval:
+    enabled: true
+    required: true
+    protocol: "ifeval_strict_loose"
+    citation: "Zhou et al., Instruction-Following Evaluation for Large Language Models, 2023"
+    probes: "data/probes/public/ifeval_smoke.jsonl"
+    metric: "prompt_loose_accuracy"
+    also_report: ["prompt_strict_accuracy", "inst_loose_accuracy", "inst_strict_accuracy"]
+    max_abs_drop: 0.05
+    lm_eval_task: "ifeval"
+
+  # Chen et al. 2021 — functional correctness pass@1 (extract fenced Python).
+  humaneval:
+    enabled: true
+    required: true
+    protocol: "humaneval_pass_at_1"
+    citation: "Chen et al., Evaluating Large Language Models Trained on Code, 2021"
+    probes: "data/probes/public/humaneval_smoke.jsonl"
+    metric: "pass_at_1"
+    max_abs_drop: 0.05
+    execute: true          # set false in locked-down environments
+    lm_eval_task: "humaneval"
+
+  # Berkeley Function-Calling Leaderboard style — schema / arg exactness (lite).
+  bfcl_lite:
+    enabled: true
+    required: true
+    protocol: "bfcl_ast_exact"
+    citation: "Berkeley Function-Calling Leaderboard (BFCL); AST / exact tool match"
+    probes: "data/probes/public/bfcl_lite_smoke.jsonl"
+    metric: "ast_exact_accuracy"
+    max_abs_drop: 0.05
+
+  # Huang et al. / Shanghai AI Lab — Chinese multi-discipline MCQ.
+  ceval:
+    enabled: true
+    required: false        # enable when shipping bilingual / CN-facing models
+    protocol: "ceval_letter_accuracy"
+    citation: "Huang et al., C-Eval: A Multi-Level Multi-Discipline Chinese Evaluation Suite, 2023"
+    probes: "data/probes/public/ceval_smoke.jsonl"
+    metric: "accuracy"
+    max_abs_drop: 0.03
+    opencompass_dataset: "ceval"
+
+  # Zheng et al. 2023 — multi-turn chat quality (LLM-as-judge optional).
+  mt_bench_lite:
+    enabled: true
+    required: false
+    protocol: "mt_bench_pair_or_rubric"
+    citation: "Zheng et al., Judging LLM-as-a-Judge (MT-Bench / Chatbot Arena), 2023"
+    probes: "data/probes/public/mt_bench_lite_smoke.jsonl"
+    metric: "rubric_mean"
+    max_abs_drop: 0.15
+    judge: "heuristic"     # heuristic | openai_compat
+
+policy:
+  # Fail the gate job if any required suite exceeds max_abs_drop vs baseline_bonsai.
+  fail_on_required_drop: true
+  # Also fail if any required suite score is NaN / missing after a real (non-dry) run.
+  fail_on_missing_required: true
+  # Smoke subsets are for wiring; production should set use_lm_eval: true or enlarge probes.
+  use_lm_eval: false
+  lm_eval_command: "lm_eval --model local-completions --tasks {tasks} --output_path {out}"
+
+reports:
+  baseline_public: "out/eval/public_baseline_bonsai.json"
+  post_public: "out/eval/public_post_qat.json"
+  teacher_public: "out/eval/public_baseline_teacher.json"

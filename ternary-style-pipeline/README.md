@@ -50,6 +50,37 @@ python eval/baseline.py --backend hf --target bonsai       # local HF student
 
 Probes: `data/probes/style_probes.jsonl`, `data/probes/capability_probes.jsonl`.
 
+### Public capability gates (anti-degradation)
+
+Style distill can quietly hurt math / code / tools. Before and after QAT, run suites that
+follow **public scoring protocols** (smoke subsets ship in-repo; enlarge or call lm-eval for prod):
+
+| Suite | Protocol | Gate metric | Typical max abs drop |
+| --- | --- | --- | --- |
+| **GSM8K** | Cobbe et al. flexible-extract | accuracy | 3% |
+| **MMLU** | Hendrycks letter accuracy | accuracy | 2% |
+| **IFEval** | Zhou et al. strict/loose | prompt_loose_accuracy | 5% |
+| **HumanEval** | Chen et al. pass@1 (exec) | pass_at_1 | 5% |
+| **BFCL-lite** | Berkeley Function-Calling AST exact | ast_exact_accuracy | 5% |
+| **C-Eval** (optional) | Huang et al. letter accuracy | accuracy | 3% |
+| **MT-Bench lite** (optional) | Zheng et al. rubric / LLM-judge | rubric_mean | 0.15 / 10 |
+
+```bash
+# baseline (pre-QAT Bonsai)
+python eval/public_benchmarks.py --backend openai_compat \
+  --target baseline_bonsai --out out/eval/public_baseline_bonsai.json
+
+# after QAT / ship
+python eval/public_benchmarks.py --backend openai_compat \
+  --target post_qat --out out/eval/public_post_qat.json
+
+python eval/regression_gates.py   # fails if required suite drop > max_abs_drop
+```
+
+Thresholds: `configs/eval_gates.yaml`. For full official numbers set `policy.use_lm_eval: true`
+and install [EleutherAI lm-evaluation-harness](https://github.com/EleutherAI/lm-evaluation-harness)
+(and optionally OpenCompass for C-Eval).
+
 ### 1 — Distill + mix
 
 ```bash
@@ -100,21 +131,21 @@ Load rules (already burned once):
 
 ```text
 ternary-style-pipeline/
-  configs/           models, distill, lora_qat, pack, eval, lms
-  data/probes/       style + capability baseline probes
+  configs/           models, distill, lora_qat, pack, eval, eval_gates, lms
+  data/probes/       style + capability + public/* smoke suites
   data/samples/      example JSONL
-  eval/              baseline + teacher regression
+  eval/              baseline, public_benchmarks, regression_gates, scorers/
   ternary_pipeline/  codecs (PQ2/PTQ1/Q2), gguf_io, code_flip
   train_qat.py
   distill_teacher.py
   mix_corpus.py
   pack_gguf.py
   scripts/run_all.ps1 | run_all.sh | ship_lms.ps1 | smoke_prism.py
-  tests/test_codecs.py
+  tests/test_codecs.py | test_scorers.py
 ```
 
 ## Success criteria
 
 1. Step-0 (swap, untrained) loads and is non-gibberish on Prism (format/Hadamard OK).
-2. After QAT: style closer to teacher than baseline Bonsai; tools/reasoning within configured drop vs baseline; code-flip in band.
+2. After QAT: style closer to teacher than baseline Bonsai; **public gates pass** (GSM8K/MMLU/IFEval/HumanEval/BFCL drops within `eval_gates.yaml`); code-flip in band.
 3. Same checkpoint → PQ2_0 and PTQ1_0 **greedy text match** (same-weight). Codec parity is checked in `tests/test_codecs.py` and `pack_gguf.py --dry-run`.

@@ -20,11 +20,18 @@ scoring:
   # student must not fall below baseline_bonsai_tool_rate - delta
   tool_rate_max_drop: 0.05
 
+# Public capability gates (GSM8K / MMLU / IFEval / HumanEval / BFCL / C-Eval / MT-Bench)
+# Detailed thresholds live in configs/eval_gates.yaml
+public_gates_config: "configs/eval_gates.yaml"
+
 targets:
   # filled after baseline run
   baseline_teacher_report: "out/eval/baseline_teacher.json"
   baseline_bonsai_report: "out/eval/baseline_bonsai.json"
   post_qat_report: "out/eval/post_qat.json"
+  public_baseline_bonsai: "out/eval/public_baseline_bonsai.json"
+  public_post_qat: "out/eval/public_post_qat.json"
+  public_gates: "out/eval/public_gates.json"
 
 parity:
   # PQ2_0 vs PTQ1_0 greedy text must match

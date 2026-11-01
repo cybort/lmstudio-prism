@@ -1,0 +1,8 @@
+{"id": "ceval_01", "subject": "computer_network", "messages": [{"role": "user", "content": "TCP 三次握手的目的是？\nA. 同步双方序列号并确认连接\nB. 仅加密通道\nC. 仅分配端口\nD. 仅压缩数据\n只回答选项字母。"}], "gold": "A"}
+{"id": "ceval_02", "subject": "operating_system", "messages": [{"role": "user", "content": "下列哪项属于进程间通信方式？\nA. 管道\nB. 仅寄存器重命名\nC. 仅分支预测\nD. 仅 TLB 刷新无关机制\n只回答选项字母。"}], "gold": "A"}
+{"id": "ceval_03", "subject": "clinical_medicine", "messages": [{"role": "user", "content": "正常成人静息心率大约为？\nA. 20–40 次/分\nB. 60–100 次/分\nC. 140–180 次/分\nD. 200 次/分以上\n只回答选项字母。"}], "gold": "B"}
+{"id": "ceval_04", "subject": "marxist_theory", "messages": [{"role": "user", "content": "唯物辩证法认为事物发展的根本原因是？\nA. 外力推动为主\nB. 内部矛盾\nC. 偶然性单独决定\nD. 绝对静止\n只回答选项字母。"}], "gold": "B"}
+{"id": "ceval_05", "subject": "high_school_math", "messages": [{"role": "user", "content": "函数 f(x)=x^2 在 R 上的最小值是？\nA. -1\nB. 0\nC. 1\nD. 不存在\n只回答选项字母。"}], "gold": "B"}
+{"id": "ceval_06", "subject": "lawyer", "messages": [{"role": "user", "content": "我国现行宪法规定，国家的一切权力属于？\nA. 政府\nB. 法院\nC. 人民\nD. 政党机关 alone\n只回答选项字母。"}], "gold": "C"}
+{"id": "ceval_07", "subject": "teacher_qualification", "messages": [{"role": "user", "content": "教学中“因材施教”强调的是？\nA. 统一进度不顾差异\nB. 依据学生差异采取不同教学\nC. 只教尖子生\nD. 取消评价\n只回答选项字母。"}], "gold": "B"}
+{"id": "ceval_08", "subject": "accountant", "messages": [{"role": "user", "content": "资产 = 负债 +？\nA. 费用\nB. 收入\nC. 所有者权益\nD. 成本\n只回答选项字母。"}], "gold": "C"}
