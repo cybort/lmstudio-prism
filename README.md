@@ -13,11 +13,11 @@ backend folder under `~/.lmstudio/extensions/backends/` by:
 ```powershell
 copy config.example.json config.json
 # edit mode: "local" | "url"
-# local_path -> existing Prism cuda folder
+# local_path -> existing Prism cuda folder (or vendor/cuda-fa after build-fa-quants.ps1)
 # url        -> zip download (default uses ghfast.top; do not use gh-proxy.net)
 ```
 
-## Install
+## Install (stock Prism release zip)
 
 ```powershell
 .\install.ps1
@@ -37,6 +37,44 @@ lms runtime ls
 # overlay: keep selecting the donor (e.g. cuda12@2.60.0) — binaries are Prism
 ```
 
+## Build FA kernels for asymmetric quantized KV
+
+Stock Prism CUDA zips only ship FlashAttention for `q4_0-q4_0` / `q8_0-q8_0` / `f16-f16`.
+Mixed pairs (e.g. **K=q8_0, V=q4_0**) fall back to converting KV to f16 (slow warning in the log).
+
+```powershell
+# Needs VS Build Tools 2026 + CUDA toolkit. Default arch=89 (RTX 4080).
+.\build-fa-quants.ps1
+# stages Release binaries to vendor/cuda-fa
+
+# point config local_path at vendor/cuda-fa (already in config.example.json), then:
+.\install.ps1 -Force
+```
+
+Compiled FA pairs (default):
+
+- Symmetric: `q4_0-q4_0`, `q8_0-q8_0`, `f16-f16`, `bf16-bf16`
+- Asymmetric: `q8_0-q4_0`, `f16-q8_0`, `f16-q4_0`, `bf16-q8_0`, `bf16-q4_0`
+
+Recommended LM Studio KV setting after this build: **K=q8_0, V=q4_0** (K higher precision).
+
+## K-cache mean-center bias (for q4_0 keys)
+
+When using `--cache-type-k q4_0`, generate a model-specific bias:
+
+```powershell
+.\make-kv-bias.ps1
+# writes <model>-kv-bias.gguf next to the GGUF
+```
+
+Pass to the server (LM Studio → load → additional llama.cpp args):
+
+```text
+--kv-mean-center J:/models/prism-ml/Ternary-Bonsai-2-27B-gguf/Ternary-Bonsai-2-27B-PQ2_0-kv-bias.gguf
+```
+
+Requires `--cache-type-k q4_0`. See Prism `docs/kv-mean-center.md`.
+
 ## Smoke test
 
 ```powershell
@@ -48,33 +86,23 @@ Loads `model_for_test` (default Ternary-Bonsai PQ2_0) with `-ngl 8` via the inst
 
 ## CUDA note
 
-Donor runtimes often ship **CUDA 12** vendor libs. Prism release zips may be **CUDA 13**.
+Donor runtimes often ship **CUDA 12** vendor libs. Prism release zips / local FA builds may be **CUDA 13**.
 If LM Studio fails to load the backend, either:
 
 - Use a CUDA 12 Prism build, or
 - Copy matching `cudart` / vendor DLLs next to `llama-server.exe`
 
+`build-fa-quants.ps1` defaults to **one** CUDA arch (`89`). Rebuild with `-CudaArch "86;89;120"` if you need other GPUs.
+
 ## Rollback
 
-Delete:
+Delete / restore:
 
-`%USERPROFILE%\.lmstudio\extensions\backends\<backend_name>-<backend_version>\`
+`%USERPROFILE%\.lmstudio\extensions\backends\<donor>.bak-stock` → copy back over the donor folder.
 
 Then pick an official runtime again in Ctrl+Shift+R.
 
-## CLI (lmstudio-js fork)
-
-After building the cybort `lmstudio-js` / `lms` fork:
-
-```powershell
-lms runtime register-custom --config K:\project\lmstudio-prism\config.json --prism-root K:\project\lmstudio-prism
-# or:
-lms runtime register-custom --path K:\project\Strata\third_party\prism-llama\cuda
-```
-
-See `K:\project\lmstudio-js\PRISM.md`.
-
 ## Related
 
-- Prism pin used here: `prism-b10777-e3de715`
+- Prism pin: `prism-b10777-e3de715`
 - Strata Bonsai path: `--engine bonsai` + `tools/bonsai/fetch_prism.py`

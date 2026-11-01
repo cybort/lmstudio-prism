@@ -44,7 +44,8 @@ function Overlay-Prism($destDir, $prismDir) {
     "ggml-base.dll",
     "ggml-cuda.dll",
     "ggml-rpc.dll",
-    "mtmd.dll"
+    "mtmd.dll",
+    "llama-kv-mean-center.exe"
   )
   foreach ($name in $prismOverlay) {
     $src = Join-Path $prismDir $name
